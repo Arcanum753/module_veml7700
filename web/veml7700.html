@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VEML7700 Lux</title>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <markup>./page_head.html</markup>
+    <h2 class="title" style="background: #B58A3A"> <span id="devicename"></span> VEML7700 — люксметр</h2>
+
+    <!-- Описание -->
+    <div class="content" style="text-align: center;">
+        <table class="scan">
+            <tr><th>Описание / Description</th></tr>
+            <tr><td style="text-align: left; padding: 8px;">
+                <b>RU:</b> Датчик освещённости VEML7700 (I2C, адрес 0x10). Показывает яркость в
+                люксах и позволяет настроить усиление, время интеграции, persistence и период
+                опроса. Значения обновляются автоматически.<br>
+                <b>EN:</b> VEML7700 ambient light sensor (I2C, addr 0x10). Shows illuminance in lux
+                and lets you set gain, integration time, persistence and poll interval.
+                Values refresh automatically.<br>
+                <small><i>(AI generated)</i></small>
+            </td></tr>
+        </table>
+    </div>
+
+    <!-- Показания -->
+    <div class="content" style="text-align: center;">
+        <table class="scan">
+            <tr><th colspan="2">Показания / Reading</th></tr>
+            <tr><td colspan="2" style="padding: 12px; font-size: 1.6em; font-weight: bold;">
+                <span id="veml_lux">--</span>
+            </td></tr>
+            <tr><td class="label">Состояние</td><td><span id="veml_available">--</span></td></tr>
+            <tr><td class="label">Адрес</td><td><span id="veml_addr">--</span></td></tr>
+            <tr><td class="label">Raw ALS</td><td><span id="veml_raw">--</span></td></tr>
+            <tr><td colspan="2" style="padding: 6px; color: #B00000; font-weight: bold;">
+                <span id="veml_sat"></span>
+            </td></tr>
+        </table>
+    </div>
+
+    <!-- Настройки -->
+    <div class="content" style="text-align: center;">
+        <table class="scan">
+            <tr><th colspan="2">Настройки люксметра / Sensor settings</th></tr>
+            <tr>
+                <td class="label">Включён</td>
+                <td><input type="checkbox" id="enabled"> (ALS_SD = 0)</td>
+            </tr>
+            <tr>
+                <td class="label">Усиление (gain)</td>
+                <td>
+                    <select id="gain">
+                        <option value="0">x1</option>
+                        <option value="1">x2</option>
+                        <option value="2">x1/4</option>
+                        <option value="3">x1/8</option>
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <td class="label">Время интеграции (IT)</td>
+                <td>
+                    <select id="it">
+                        <option value="0">25 ms</option>
+                        <option value="1">50 ms</option>
+                        <option value="2">100 ms</option>
+                        <option value="3">200 ms</option>
+                        <option value="4">400 ms</option>
+                        <option value="5">800 ms</option>
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <td class="label">Persistence</td>
+                <td>
+                    <select id="persistence">
+                        <option value="0">1</option>
+                        <option value="1">2</option>
+                        <option value="2">4</option>
+                        <option value="3">8</option>
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <td class="label">Период опроса (мс)</td>
+                <td><input type="number" id="pollInterval" min="200" max="60000" value="1000" style="width:100px;"></td>
+            </tr>
+            <tr><td colspan="2" style="text-align: center; padding: 8px;">
+                <input type="button" value="Применить" class="button-prog" onclick="saveConfig()">
+                <span id="vemlStatus" style="margin-left:8px;font-size:12px;"></span>
+            </td></tr>
+        </table>
+    </div>
+
+    <div class="footer">
+        Module version: <span id="vemlversion"> </span> &nbsp;|&nbsp;
+        Build: <span id="vemlgentime"> </span> <br>
+    </div>
+
+    <markup>./page_bottom.html</markup>
+    <script src="GetJson.js" defer></script>
+    <script src="GetMarkup.js" defer></script>
+    <script>
+        async function saveConfig() {
+            const enabled = document.getElementById('enabled').checked ? 'true' : 'false';
+            const gain = document.getElementById('gain').value;
+            const it = document.getElementById('it').value;
+            const persistence = document.getElementById('persistence').value;
+            const poll = document.getElementById('pollInterval').value;
+            const statusEl = document.getElementById('vemlStatus');
+            statusEl.innerHTML = 'Saving...';
+            try {
+                const resp = await fetch(`/veml7700/save?enabled=${enabled}&gain=${gain}&it=${it}&persistence=${persistence}&pollInterval=${poll}`, { method: 'POST' });
+                if (resp.ok) {
+                    statusEl.innerHTML = 'Saved';
+                    setTimeout(() => { statusEl.innerHTML = ''; }, 3000);
+                } else {
+                    statusEl.innerHTML = 'Error';
+                }
+            } catch (e) {
+                statusEl.innerHTML = 'Error';
+            }
+        }
+        async function updateRead() {
+            try {
+                const resp = await fetch('/veml7700/read');
+                const text = await resp.text();
+                const lines = text.split('\n');
+                for (const line of lines) {
+                    const parts = line.split('|');
+                    if (parts.length >= 2) {
+                        const el = document.getElementById(parts[0]);
+                        if (el) { el.innerText = parts[1]; }
+                    }
+                }
+            } catch (e) {}
+        }
+        window.onload = function() {
+            setTimeout(() => {
+                ApplyCVT("/system/version")
+                    .then(() => ApplyCVT("/veml7700/info"))
+                    .then(() => ApplyCVT("/veml7700/ver"));
+            }, 500);
+            updateRead();
+            setInterval(updateRead, 1000);
+        };
+    </script>
+</body>
+</html>
