@@ -1,33 +1,19 @@
--- veml7700_brightness.lua
--- Авто-яркость матрицы «Электроника-7» RGB по освещённости VEML7700.
---   lux < 20         -> e7.brightness = 5
---   20 <= lux <= 100 -> e7.brightness = 20
---   lux > 100        -> e7.brightness = 35  (максимум)
---
--- Условия объединяются по AND; каждое правило срабатывает по фронту false->true,
--- поэтому яркость переключается при переходе между диапазонами.
--- Запись e7.brightness разрешена только в режиме e7.mode = macro, поэтому первым
--- телом макрос сам переводит устройство в этот режим (один раз при старте).
--- Правила выполняются только когда датчик доступен (veml7700.available == true).
-return {
-    desc = "VEML7700 lux -> e7.brightness (5/20/35)",
-    rules = {
-        { set = "e7.mode", value = "macro" },
+-- Эталонный пример: тело файла исполняется раз в секунду.
+-- Требует namespace veml7700 (модуль с полями available/lux).
+-- Новый стиль: логика — обычный Lua-код в теле, дублирование записи
+-- отсекает шина (e7.brightness — dual-ресурс), поэтому state не нужен.
+meta{ desc = "night: brightness by veml7700 lux" }
 
-        { when = { cond = {
-            { res = "veml7700.available", op = "==", val = true },
-            { res = "veml7700.lux",       op = "<",  val = 20 },
-        } }, set = "e7.brightness", value = 5 },
-
-        { when = { cond = {
-            { res = "veml7700.available", op = "==", val = true },
-            { res = "veml7700.lux",       op = ">=", val = 20 },
-            { res = "veml7700.lux",       op = "<=", val = 100 },
-        } }, set = "e7.brightness", value = 20 },
-
-        { when = { cond = {
-            { res = "veml7700.available", op = "==", val = true },
-            { res = "veml7700.lux",       op = ">",  val = 100 },
-        } }, set = "e7.brightness", value = 35 },
-    },
-}
+-- Ночное окно 22:00..08:00, яркость по уровням освещённости.
+if time.hour >= 22 or time.hour < 8 then
+    if veml7700.available then
+        local lux = veml7700.lux
+        if lux < 20 then
+            e7.brightness = 5
+        elseif lux < 100 then
+            e7.brightness = 30
+        else
+            e7.brightness = 80
+        end
+    end
+end
