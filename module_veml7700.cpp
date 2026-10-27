@@ -103,6 +103,9 @@ void CLASS_MODULE_VEML7700::web_Init() {
 // ============================================================
 // register_resources() — публикация ресурсов на шине core_state
 // ============================================================
+// Ресурсы шины (namespace veml7700): состояния lux (F32), available (BOOL);
+// функция save. Каталог /macros/resources.json собирается при сборке ФС
+// (python/gen_resources_catalog.py) — вручную не правим.
 void CLASS_MODULE_VEML7700::register_resources() {
     DEBUGVEML7700("%s\r\n", __FUNCTION__);
 
